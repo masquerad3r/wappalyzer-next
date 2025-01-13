@@ -17,14 +17,17 @@ parser.add_argument('-oJ', help='json output file', dest='json_output_file')
 parser.add_argument('-oC', help='csv output file', dest='csv_output_file')
 parser.add_argument('-oH', help='html output file', dest='html_output_file')
 parser.add_argument('-c', '--cookie', help='cookie string', dest='cookie')
+parser.add_argument('-uA', '--user-agent', help='custom user-agent to pass', dest='user_agent')
+# parser.add_argument('-cH', '--custom-header', help='custom header to pass', dest='custom_header')
+
 args = parser.parse_args()
 
-def analyze(url, scan_type='full', threads=3, cookie=None):
+def analyze(url, scan_type='full', threads=3, cookie=None, user_agent=None):
     """Analyze a single URL"""
     if scan_type.lower() == 'full':
         driver_pool = None
         try:
-            driver_pool = DriverPool(size=1)  # Single driver for one URL
+            driver_pool = DriverPool(size=1, user_agent=user_agent)  # Single driver for one URL
             with driver_pool.get_driver() as driver:
                 if cookie:
                     for cookie_dict in cookie_to_cookies(cookie):
@@ -37,7 +40,7 @@ def analyze(url, scan_type='full', threads=3, cookie=None):
                     driver_pool.cleanup()
                 except Exception as e:
                     print(f"Error during final cleanup: {str(e)}")
-    return {url: http_scan(url, scan_type, cookie)}
+    return {url: http_scan(url, scan_type, cookie, user_agent)}
 
 def main():
     if not args.input_file:
@@ -56,7 +59,7 @@ def main():
                 result[url] = detections
         return result
 
-    def process_urls(urls, num_threads=3, cookie=None, scan_type='full', should_print=False):
+    def process_urls(urls, num_threads=3, cookie=None, user_agent=None, scan_type='full', should_print=False):
         """Process multiple URLs using a driver pool"""
         results = {}
         driver_pool = None
@@ -93,7 +96,7 @@ def main():
                 print(f"Worker {worker_id} encountered an error: {str(e)}")
         
         try:
-            driver_pool = DriverPool(size=min(num_threads, 3))  # Limit max concurrent drivers
+            driver_pool = DriverPool(size=min(num_threads, 3), user_agent=user_agent)  # Limit max concurrent drivers
             
             url_queue = Queue()
             result_queue = Queue()
@@ -155,7 +158,7 @@ def main():
                         pass
 
     if re.search(r'^https?://', args.input_file.lower()):
-        result = analyze(args.input_file, args.scan_type, args.thread_num, args.cookie)
+        result = analyze(args.input_file, args.scan_type, args.thread_num, args.cookie, args.user_agent)
         if args.json_output_file:
             write_to_file(args.json_output_file, result, format='json')
         elif args.csv_output_file:
@@ -169,7 +172,7 @@ def main():
         urls = urls_file.read().splitlines()
         urls_file.close()
         should_print = True if not args.json_output_file and not args.csv_output_file else False
-        results = process_urls(urls, args.thread_num, args.cookie, args.scan_type, should_print=should_print)
+        results = process_urls(urls, args.thread_num, args.cookie, args.user_agent, args.scan_type, should_print=should_print)
         if args.json_output_file:
             write_to_file(args.json_output_file, results, format='json')
         elif args.csv_output_file:

@@ -1,7 +1,7 @@
 import requests
 from wappalyzer.core.config import config
 
-def get_response(url, cookie=None, **kwargs):
+def get_response(url, cookie=None, user_agent=None, **kwargs):
     headers = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
@@ -21,6 +21,8 @@ def get_response(url, cookie=None, **kwargs):
     try:
         if cookie:
             headers['Cookie'] = cookie
+        if user_agent:
+            headers['User-Agent'] = user_agent
         response = requests.get(url, headers=headers, verify=True, **kwargs)
         return response
     except requests.exceptions.RequestException as e:

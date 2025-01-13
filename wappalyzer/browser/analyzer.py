@@ -6,6 +6,7 @@ from queue import Queue, Empty
 from contextlib import contextmanager
 
 from http.cookies import SimpleCookie
+from typing import Optional
 from urllib.parse import unquote
 
 from selenium import webdriver
@@ -19,11 +20,15 @@ from wappalyzer.core.utils import create_result
 
 
 class DriverPool:
-    def __init__(self, size=3, max_retries=3):
+    def __init__(self, size=3, max_retries=3, user_agent: Optional[str]=None):
         self.pool = Queue(maxsize=size)
         self.lock = threading.Lock()
         self.max_retries = max_retries
         self.xpi_path = os.path.abspath(extension_path)
+        self._user_agent = user_agent
+
+        if self._user_agent is None:
+            self._user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0"
         
         # Initialize the pool with drivers
         for _ in range(size):
@@ -47,8 +52,7 @@ class DriverPool:
                 options.set_preference("media.autoplay.blocking_policy", 2)
                 options.set_preference("dom.webdriver.enabled", False)
                 options.set_preference('useAutomationExtension', False)
-                options.set_preference("general.useragent.override", 
-                    "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0")
+                options.set_preference("general.useragent.override", self._user_agent)
                 options.add_argument("--headless")
                 
                 driver = webdriver.Firefox(options=options)

@@ -17,10 +17,10 @@ from wappalyzer.analyzers.js import match_js
 from wappalyzer.core.requester import get_response
 from wappalyzer.core.utils import create_result
 
-def process_scripts(scheme, js, scriptSrc):
+def process_scripts(scheme, js, scriptSrc, user_agent=None):
     def fetch_and_process(src):
         if src.endswith('.js') or '.js?' in src:
-            js_code = get_response(src)
+            js_code = get_response(src, user_agent)
             if js_code and js_code.headers['Content-Type'].startswith('application/javascript'):
                 js_dict, low_dict, js_classes = get_js(js_code.text)
                 if js_dict:
@@ -33,9 +33,9 @@ def process_scripts(scheme, js, scriptSrc):
             result = future.result()
             if result:
                 js.append({'dict': result['dict'], 'low_dict': result['low_dict'], 'classes': result['classes']})
-                scriptSrc.extend(get_scriptSrc(scheme, get_response(result['src']).text))
+                scriptSrc.extend(get_scriptSrc(scheme, get_response(result['src'], user_agent).text))
 
-def analyze_from_response(response, scan_type):
+def analyze_from_response(response, scan_type, user_agent=None):
     # prepare common info
     soup = BeautifulSoup(response.text, 'html.parser')
     r = tldextract.extract(response.url)
@@ -52,14 +52,14 @@ def analyze_from_response(response, scan_type):
             if js_dict:
                 js.append({'dict': js_dict, 'low_dict': low_dict, 'classes': js_classes})
     if scan_type != 'fast':
-        process_scripts(scheme, js, scriptSrc)
+        process_scripts(scheme, js, scriptSrc, user_agent)
 
     if scan_type != 'fast':
         dns = get_dns(domain)
     meta = get_meta(soup)
     cookies = response.cookies.get_dict()
     if scan_type != 'fast':
-        robots = get_robots(response.url)
+        robots = get_robots(response.url, user_agent)
     certIssuer = get_certIssuer(response)
 
     result = {}
@@ -134,8 +134,8 @@ def analyze_from_response(response, scan_type):
                 new_result[tech_db[detected]['implies']] = {'version': '', 'confidence': 100}
     return create_result(new_result)
 
-def http_scan(url, scan_type, cookie=None):
-    response = get_response(url, cookie)
+def http_scan(url, scan_type, cookie=None, user_agent=None):
+    response = get_response(url, cookie, user_agent)
     if response:
         return analyze_from_response(response, scan_type)
     return {}
